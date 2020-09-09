@@ -18,6 +18,7 @@ import android.widget.LinearLayout
 import androidx.core.view.NestedScrollingParent2
 import androidx.core.view.ViewCompat
 import java.util.concurrent.locks.ReentrantLock
+import javax.security.auth.login.LoginException
 import kotlin.math.abs
 
 class ElasticView @JvmOverloads constructor(
@@ -65,7 +66,6 @@ class ElasticView @JvmOverloads constructor(
         override fun over() {
             headerAdapter!!.isDoing = false
             postDelayed({
-                Log.e(TAG,"1")
                 springBack(getScrollOffset(), 300)
             }, 300)
         }
@@ -74,7 +74,6 @@ class ElasticView @JvmOverloads constructor(
         override fun over() {
             footerAdapter!!.isDoing = false
             postDelayed({
-                Log.e(TAG,"2")
                 springBack(getScrollOffset(), 300)
             }, 300)
         }
@@ -115,15 +114,17 @@ class ElasticView @JvmOverloads constructor(
 //        判断是否滑动到边界,滑动到边界的情况交给parent处理
         if (canScroll(target, dx = dx, dy = dy)) {
             if (type == ViewCompat.TYPE_TOUCH) {
-                if (!isMove)
+                if (!isMove) {
                     isMove = true
+                    allowFling = false
+                }
             } else if (type == ViewCompat.TYPE_NON_TOUCH) {
                 /**
                  * 这个判断很 重要
                  */
-                if (!allowFling || isMove) return//fling被禁止
+                if (!allowFling) return//fling被禁止
                 isFling = true
-                if (abs(getScrollOffset()) >= 100) {
+                if (abs(getScrollOffset()) >= 100 || abs(dx+dy)*dampingTemp < 5) {
                     allowFling = false//禁止fling
                     springBack(getScrollOffset(), animTimeLong)
                     return
@@ -135,6 +136,7 @@ class ElasticView @JvmOverloads constructor(
             scrollBy((dx * dampingTemp).toInt(), (dy * dampingTemp).toInt())
             calcDamping()
         } else {//此处有两种情况 一是未到边界的滑动，二是已经移动过布局，但是现在开始反向滑动了
+            Log.e(TAG,"else  isMove=$isMove")
             if (isMove) {
                 val temp = if (orientation == VERTICAL) dy * damping else dx * damping
                 val scrollOffset = getScrollOffset()
@@ -160,9 +162,15 @@ class ElasticView @JvmOverloads constructor(
         type: Int
     ) {}
 
-    //子view停止移动
+    /**
+     * 子view停止滑动
+     * 这个方法在整个过程中会被调用3次
+     * 滑动之前 手指离开屏幕 fling结束
+     * 手指离开屏幕时是滑动由drag变成fling开始惯性滑动
+     */
     override fun onStopNestedScroll(target: View, type: Int) {
-        if (!isMove && isFling) {
+        //这是最后一次调用此方法
+        if (isMove && isFling) {
             allowFling = true
             isFling = false
             return
@@ -334,7 +342,7 @@ class ElasticView @JvmOverloads constructor(
 //        lock.lock()
         animator = if (animator != null) {
             animator!!.cancel()
-            var tmp =-
+            val tmp =-
                 if (isLoading()) {
                     getScrollOffset() +
                             if (headerAdapter != null &&  headerAdapter!!.isDoing) headerAdapter!!.offset
