@@ -3,15 +3,40 @@
 
 ### Usage
 
+ - 导入ElasticView
+Add it in your root build.gradle at the end of repositories:
+```
+    allprojects {
+		repositories {
+			...
+			maven { url 'https://jitpack.io' }
+		}
+	}
+```
+	
+
+Step 2. Add the dependency
+
+```
+	dependencies {
+	        implementation 'com.github.FrontmanwithWLJ:ElasticView:1.1.0'
+	}
+```
+
+*** 
+
  - MainActivity.kt
 ```kotlin
 class MainActivity : AppCompatActivity(), ElasticView.OnEventListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        val list:ElasticView = findViewById(R.id.list)// list 就是ElasticView控件实例
         //设置头部 尾部适配器在适配器中生成头部、底部View
         list.setHeaderAdapter(BaseHeader(this,200))
-        list.setFooterAdapter(BaseFooter(this,200))
+        list.setFooterAdapter(BaseFooter(this,200))//如果没有设置adapter 那么这个列表就只是单纯的弹性视图
+        list.setDamping(0.3,true)//设置阻尼系数，是否递减
+        list.setAnimTime(300)//设置弹回动画时间 0.3秒
         //设置事件监听
         list.setOnElasticViewEventListener(this)
     }
