@@ -11,15 +11,11 @@ import android.animation.Animator
 import android.animation.ValueAnimator
 import android.content.Context
 import android.util.AttributeSet
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import androidx.core.view.NestedScrollingParent2
 import androidx.core.view.ViewCompat
-import androidx.core.widget.NestedScrollView
-import java.util.concurrent.locks.ReentrantLock
-import javax.security.auth.login.LoginException
 import kotlin.math.abs
 
 class ElasticView @JvmOverloads constructor(
@@ -101,6 +97,7 @@ class ElasticView @JvmOverloads constructor(
 
     /**
      * @param consumed 记录parent消耗的距离，consumed[0]-->X  [1]-->y
+     * 如果parent消耗完，那么child就不会继续处理了
      */
     override fun onNestedPreScroll(target: View, dx: Int, dy: Int, consumed: IntArray, type: Int) {
         val scrollOffset = getScrollOffset()
@@ -110,14 +107,12 @@ class ElasticView @JvmOverloads constructor(
                 if (!isMove) {
                     isMove = true
                     allowFling = false
-                    Log.e(TAG,"禁止Fling")
                 }
             } else if (type == ViewCompat.TYPE_NON_TOUCH) {
                 /**
                  * 这个判断很 重要
                  */
                 if (!allowFling) {
-                    Log.e(TAG,"fling 禁止")
                     return
                 }//fling被禁止oo
                 isFling = true
@@ -166,7 +161,6 @@ class ElasticView @JvmOverloads constructor(
     override fun onStopNestedScroll(target: View, type: Int) {
        //这是最后一次调用此方法
         if (type == ViewCompat.TYPE_NON_TOUCH) {
-            Log.e(TAG,"fling 允许")
             allowFling = true
             isFling = false
             return
@@ -174,6 +168,7 @@ class ElasticView @JvmOverloads constructor(
         val scrollOffset = getScrollOffset()
         if (!isMove ) return
         isMove = false
+        //达到加载条件
         if (headerAdapter != null && scrollOffset < 0 && scrollOffset <= -headerAdapter!!.offset) {
             springBack(headerAdapter!!.offset + scrollOffset, animTimeShort)
             if (isLoading()) return
@@ -182,6 +177,7 @@ class ElasticView @JvmOverloads constructor(
             listener?.onRefresh()
             return
         }
+        //达到加载条件
         if (footerAdapter != null && scrollOffset > 0 && scrollOffset >= footerAdapter!!.offset) {
             springBack(scrollOffset - footerAdapter!!.offset, animTimeShort)
             if (isLoading()) return
