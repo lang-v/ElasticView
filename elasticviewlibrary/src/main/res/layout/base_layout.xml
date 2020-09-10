@@ -4,6 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="center"
+    android:background="@android:color/holo_red_dark"
     android:orientation="horizontal">
 
     <RelativeLayout
@@ -17,7 +18,8 @@
             android:layout_height="30dp"
             android:layout_gravity="center"
             android:scaleType="fitXY"
-            android:src="@drawable/ic_arrow_downward_gray_50dp" />
+            android:src="@drawable/ic_arrow_downward_gray_50dp"
+            android:contentDescription="loading" />
 
         <ProgressBar
             android:id="@+id/progressBar"

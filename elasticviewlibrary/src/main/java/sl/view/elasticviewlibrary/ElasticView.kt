@@ -17,6 +17,7 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import androidx.core.view.NestedScrollingParent2
 import androidx.core.view.ViewCompat
+import androidx.core.widget.NestedScrollView
 import java.util.concurrent.locks.ReentrantLock
 import javax.security.auth.login.LoginException
 import kotlin.math.abs
@@ -111,22 +112,26 @@ class ElasticView @JvmOverloads constructor(
 //            //target.invalidate()
 //            return
 //        }
+        val scrollOffset = getScrollOffset()
 //        判断是否滑动到边界,滑动到边界的情况交给parent处理
         if (canScroll(target, dx = dx, dy = dy)) {
             if (type == ViewCompat.TYPE_TOUCH) {
                 if (!isMove) {
                     isMove = true
                     allowFling = false
+                    Log.e(TAG,"禁止Fling")
                 }
             } else if (type == ViewCompat.TYPE_NON_TOUCH) {
                 /**
                  * 这个判断很 重要
                  */
-                if (!allowFling) return//fling被禁止
+                if (!allowFling) {
+                    return
+                }//fling被禁止oo
                 isFling = true
-                if (abs(getScrollOffset()) >= 100 || abs(dx+dy)*dampingTemp < 5) {
+                if (abs(scrollOffset) >= 100 || abs(dx+dy)*dampingTemp < 5) {
                     allowFling = false//禁止fling
-                    springBack(getScrollOffset(), animTimeLong)
+                    springBack(scrollOffset, animTimeLong)
                     return
                 }
             }
@@ -136,10 +141,8 @@ class ElasticView @JvmOverloads constructor(
             scrollBy((dx * dampingTemp).toInt(), (dy * dampingTemp).toInt())
             calcDamping()
         } else {//此处有两种情况 一是未到边界的滑动，二是已经移动过布局，但是现在开始反向滑动了
-            Log.e(TAG,"else  isMove=$isMove")
-            if (isMove) {
+            if (scrollOffset != 0) {
                 val temp = if (orientation == VERTICAL) dy * damping else dx * damping
-                val scrollOffset = getScrollOffset()
                 //防止越界，如果数据越界就设为边界值
                 val offset =
                     if (scrollOffset <= 0 && temp > -scrollOffset) -scrollOffset
@@ -169,15 +172,15 @@ class ElasticView @JvmOverloads constructor(
      * 手指离开屏幕时是滑动由drag变成fling开始惯性滑动
      */
     override fun onStopNestedScroll(target: View, type: Int) {
-        //这是最后一次调用此方法
-        if (isMove && isFling) {
+       //这是最后一次调用此方法
+        if (isFling) {
             allowFling = true
             isFling = false
             return
         }
-        if (!isMove) return
-        isMove = false
         val scrollOffset = getScrollOffset()
+        if (!isMove ) return
+        isMove = false
         if (headerAdapter != null && scrollOffset < 0 && scrollOffset <= -headerAdapter!!.offset) {
             springBack(headerAdapter!!.offset + scrollOffset, animTimeShort)
             if (isLoading()) return
@@ -204,7 +207,7 @@ class ElasticView @JvmOverloads constructor(
         } else {
             super.scrollBy(x, 0)
         }
-        if (isLoading()) return
+//        if (isLoading()) return
         val scrollOffset = getScrollOffset()
         //更新控件header，footer状态
         if (scrollOffset < 0) {
@@ -340,13 +343,15 @@ class ElasticView @JvmOverloads constructor(
     private fun springBack(offset: Int, animTime: Long) {
         //if (isLoading()) return
 //        lock.lock()
+//        val view:View? = null
         animator = if (animator != null) {
             animator!!.cancel()
             val tmp =-
                 if (isLoading()) {
                     getScrollOffset() +
                             if (headerAdapter != null &&  headerAdapter!!.isDoing) headerAdapter!!.offset
-                            else -footerAdapter!!.offset
+                            else if (footerAdapter != null && footerAdapter!!.isDoing) -footerAdapter!!.offset
+                            else -offset
                 }else
                     -offset
             ValueAnimator.ofInt(0, tmp)

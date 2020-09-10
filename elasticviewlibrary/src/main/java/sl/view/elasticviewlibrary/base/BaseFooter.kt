@@ -12,9 +12,9 @@ import sl.view.elasticviewlibrary.R
 
 class BaseFooter(private val context: Context, offset:Int):ElasticView.FooterAdapter(offset) {
     private lateinit var view: View
-    private val icon by lazy { view.findViewById<ImageView>(R.id.footerImg) }
-    private val progressBar by lazy { view.findViewById<ProgressBar>(R.id.footerProgressBar) }
-    private val text by lazy { view.findViewById<TextView>(R.id.footerText) }
+    private val icon by lazy { view.findViewById<ImageView>(R.id.img) }
+    private val progressBar by lazy { view.findViewById<ProgressBar>(R.id.progressBar) }
+    private val text by lazy { view.findViewById<TextView>(R.id.text) }
 
     //icon的方向
     private val DIRECTION_DOWN = true
@@ -22,7 +22,7 @@ class BaseFooter(private val context: Context, offset:Int):ElasticView.FooterAda
     private var direction = DIRECTION_DOWN
 
     override fun getContentView(viewGroup: ViewGroup): View {
-        view = LayoutInflater.from(context).inflate(R.layout.base_layout_footer, viewGroup, false)
+        view = LayoutInflater.from(context).inflate(R.layout.base_layout, viewGroup, false)
         return view
     }
     override fun scrollProgress(progress: Int) {}
