@@ -103,15 +103,6 @@ class ElasticView @JvmOverloads constructor(
      * @param consumed 记录parent消耗的距离，consumed[0]-->X  [1]-->y
      */
     override fun onNestedPreScroll(target: View, dx: Int, dy: Int, consumed: IntArray, type: Int) {
-//        if ( isFling && !allowFling) {//处于加载状态、动画播放不允许fling滑动
-//            consumed[0] = dx
-//            consumed[1] = dy
-////            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-////                target.stopNestedScroll()
-////            }
-//            //target.invalidate()
-//            return
-//        }
         val scrollOffset = getScrollOffset()
 //        判断是否滑动到边界,滑动到边界的情况交给parent处理
         if (canScroll(target, dx = dx, dy = dy)) {
@@ -126,6 +117,7 @@ class ElasticView @JvmOverloads constructor(
                  * 这个判断很 重要
                  */
                 if (!allowFling) {
+                    Log.e(TAG,"fling 禁止")
                     return
                 }//fling被禁止oo
                 isFling = true
@@ -173,7 +165,8 @@ class ElasticView @JvmOverloads constructor(
      */
     override fun onStopNestedScroll(target: View, type: Int) {
        //这是最后一次调用此方法
-        if (isFling) {
+        if (type == ViewCompat.TYPE_NON_TOUCH) {
+            Log.e(TAG,"fling 允许")
             allowFling = true
             isFling = false
             return
