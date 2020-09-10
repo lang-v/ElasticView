@@ -4,6 +4,7 @@
 
 我们所用到的列表（ListView、RecyclerView、ScrollView、NestedScrollView等等），都是日常开发中经常会使用到的，但是这些列表类在滑动到底部或者顶部时并没有很好的动画效果，只有一层波纹效果，会让我们的App瞬间掉了一个档次。如果列表滑动到底部或者顶部还能够继续滑动并且在松开手指后能够将视图弹回来，那么效果就会好狠多了。要实现这个功能就需要了解Google的[NestedScrollingParent](https://developer.android.google.cn/reference/androidx/core/view/NestedScrollingParent)、[NestedScrollingChild](https://developer.android.google.cn/reference/androidx/core/view/NestedScrollingChild),另外这个嵌套滑动套件已经更新到了[NestedScrollingParent3](https://developer.android.google.cn/reference/androidx/core/view/NestedScrollingParent3)、[NestedScrollingChild3](https://developer.android.google.cn/reference/androidx/core/view/NestedScrollingChild3)。这里用到的是NestedScrollingparent2。
 通过ElasticView可以做到列表上下滑动的弹性效果，还可以设置上拉加载更多、下拉刷新，并且加载动画可以通过设置Adapter来自定义动画和动画播放顺序。代码很短，适合新手看一看，欢迎大家提出建议。
+此外这个库提供了基础的头部适配器（BaseHeader）和尾部适配器（BaseFooter），实现了简单的动画效果，可以根据这两个类自定义适配器。
 
 ### 用法
 
