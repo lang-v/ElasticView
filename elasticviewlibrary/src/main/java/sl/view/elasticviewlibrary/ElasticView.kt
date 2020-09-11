@@ -33,7 +33,7 @@ class ElasticView @JvmOverloads constructor(
     private var footerAdapter: FooterAdapter? = null
 
     //弹回的动画时间
-    private var animTimeLong = 300L
+    private var animTimeLong = 200L
     private var animTimeShort = animTimeLong / 2
 
     //阻尼系数
@@ -95,6 +95,7 @@ class ElasticView @JvmOverloads constructor(
         }) != 0
     }
 
+
     /**
      * @param consumed 记录parent消耗的距离，consumed[0]-->X  [1]-->y
      * 如果parent消耗完，那么child就不会继续处理了
@@ -104,21 +105,18 @@ class ElasticView @JvmOverloads constructor(
 //        判断是否滑动到边界,滑动到边界的情况交给parent处理
         if (canScroll(target, dx = dx, dy = dy)) {
             if (type == ViewCompat.TYPE_TOUCH) {
-                if (!isMove) {
-                    isMove = true
-                    allowFling = false
-                }
+                isMove = true
+                allowFling = false
             } else if (type == ViewCompat.TYPE_NON_TOUCH) {
                 /**
                  * 这个判断很 重要
                  */
-                if (!allowFling) {
-                    return
-                }//fling被禁止oo
+                if (!allowFling)return
                 isFling = true
-                if (abs(scrollOffset) >= 100 || abs(dx+dy)*dampingTemp < 5) {
+                allowFling = true
+                if (abs(scrollOffset) >= 100 || abs(dx+dy)*dampingTemp < 10) {
                     allowFling = false//禁止fling
-                    springBack(scrollOffset, animTimeLong)
+                    springBack(scrollOffset, animTimeShort)
                     return
                 }
             }
@@ -152,6 +150,9 @@ class ElasticView @JvmOverloads constructor(
         type: Int
     ) {}
 
+
+
+    //private var isFirstStopScrollOnTouch = false
     /**
      * 子view停止滑动
      * 这个方法在整个过程中会被调用3次
@@ -159,14 +160,14 @@ class ElasticView @JvmOverloads constructor(
      * 手指离开屏幕时是滑动由drag变成fling开始惯性滑动
      */
     override fun onStopNestedScroll(target: View, type: Int) {
-       //这是最后一次调用此方法
+        //这是最后一次调用此方法
         if (type == ViewCompat.TYPE_NON_TOUCH) {
             allowFling = true
             isFling = false
             return
         }
         val scrollOffset = getScrollOffset()
-        if (!isMove ) return
+        if (!isMove) return
         isMove = false
         //达到加载条件
         if (headerAdapter != null && scrollOffset < 0 && scrollOffset <= -headerAdapter!!.offset) {
@@ -196,7 +197,7 @@ class ElasticView @JvmOverloads constructor(
         } else {
             super.scrollBy(x, 0)
         }
-//        if (isLoading()) return
+        if (isLoading()) return
         val scrollOffset = getScrollOffset()
         //更新控件header，footer状态
         if (scrollOffset < 0) {
@@ -316,6 +317,7 @@ class ElasticView @JvmOverloads constructor(
 
     //计算阻尼变化
     private fun calcDamping() {
+        if (!isDecrement)return
         //val offset = abs(getScrollXY()).toDouble()
         //双曲正切函数(e^x-e^(-x))/(e^x+e^(-x)),随着x递增，y从零开始增加无限趋近于0
         //dampingTemp = damping * (1-((exp(offset) - exp(-offset))/(exp(offset) + exp(-offset)))).toFloat()
@@ -329,10 +331,8 @@ class ElasticView @JvmOverloads constructor(
     private var animator: ValueAnimator? = null
 
     //弹回动画
+    @Synchronized
     private fun springBack(offset: Int, animTime: Long) {
-        //if (isLoading()) return
-//        lock.lock()
-//        val view:View? = null
         animator = if (animator != null) {
             animator!!.cancel()
             val tmp =-
@@ -342,7 +342,7 @@ class ElasticView @JvmOverloads constructor(
                             else if (footerAdapter != null && footerAdapter!!.isDoing) -footerAdapter!!.offset
                             else -offset
                 }else
-                    -offset
+                    offset
             ValueAnimator.ofInt(0, tmp)
         } else
             ValueAnimator.ofInt(0, -offset)
@@ -398,20 +398,6 @@ class ElasticView @JvmOverloads constructor(
         post {
             addView(view, 0, layoutParams)//最底层
         }
-//        view.post {
-//            val height = view.measuredHeight
-//            val width = view.measuredWidth
-//            val layoutParams: LayoutParams?
-//            //使其位于布局范围之外
-//            if (orientation == VERTICAL) {
-//                layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, height)
-//                layoutParams.topMargin = -height
-//            } else {
-//                layoutParams = LayoutParams(width, LayoutParams.MATCH_PARENT)
-//                layoutParams.leftMargin = -width
-//            }
-//            view.layoutParams = layoutParams
-//        }
     }
 
     fun setFooterAdapter(adapter: FooterAdapter) {
