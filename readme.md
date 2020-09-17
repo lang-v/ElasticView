@@ -26,7 +26,7 @@ Step 2. Add the dependency
 
 ```
 	dependencies {
-	        implementation 'com.github.lang-v:ElasticView:1.0.1.u1'
+	        implementation 'com.github.lang-v:ElasticView:1.0.2'
 	}
 ```
 
