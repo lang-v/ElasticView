@@ -7,10 +7,10 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
-import sl.view.elasticviewlibrary.ElasticView
+import sl.view.elasticviewlibrary.ElasticLayout
 import sl.view.elasticviewlibrary.R
 
-class BaseHeader(private val context: Context, offset: Int) : ElasticView.HeaderAdapter(offset) {
+class BaseHeader(private val context: Context, offset: Int) : ElasticLayout.HeaderAdapter(offset) {
     private lateinit var view: View
     private val icon by lazy { view.findViewById<ImageView>(R.id.img) }
     private val progressBar by lazy { view.findViewById<ProgressBar>(R.id.progressBar) }

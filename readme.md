@@ -46,6 +46,11 @@ class MainActivity : AppCompatActivity(), ElasticView.OnEventListener {
         list.setAnimTime(300)//设置弹回动画时间 0.3秒
         //设置事件监听
         list.setOnElasticViewEventListener(this)
+        list.isRefreshing = true//手动调用刷新
+        list.isRefreshing = false//停止刷新
+    
+        //并没有实现手动调用上拉加载
+        list.isLoading = false//停止上拉加载
     }
 
     /**
@@ -56,7 +61,7 @@ class MainActivity : AppCompatActivity(), ElasticView.OnEventListener {
         Thread{
             Thread.sleep(1500)
             runOnUiThread{
-                list.headerRefreshStop("完成")
+                list.isRefreshing = false//停止刷新
             }
         }.start()
     }
@@ -65,7 +70,7 @@ class MainActivity : AppCompatActivity(), ElasticView.OnEventListener {
         Thread{
             Thread.sleep(1500)
             runOnUiThread{
-                list.footerLoadStop("加载完毕")
+                list.isLoading = false//停止加载
             }
         }.start()
     }
@@ -75,7 +80,7 @@ class MainActivity : AppCompatActivity(), ElasticView.OnEventListener {
   - R.layout.activity_main.xml
 ```xml
 <!--    ElasticView继承于LinearLayout 通过设置orientation来控制滑动方向-->
-    <sl.view.elasticviewlibrary.ElasticView
+    <sl.view.elasticviewlibrary.ElasticLayout
         android:id="@+id/list"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -89,7 +94,7 @@ class MainActivity : AppCompatActivity(), ElasticView.OnEventListener {
 <!--           列表内容 -->
         </androidx.core.widget.NestedScrollView>
 
-    </sl.view.elasticviewlibrary.ElasticView>
+    </sl.view.elasticviewlibrary.ElasticLayout>
 ```
 
 ***

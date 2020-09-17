@@ -1,7 +1,7 @@
 package sl.view.elasticviewlibrary
 
 /**
- * ElasticView 布局内仅有一个View。
+ * ElasticLayout 布局内仅有一个View。
  * headerView和footerView用户设置适配器时添加
  * 拦截所有触摸事件不靠谱，太多不确定因素
  * 还是用NestedScrollParent
@@ -18,13 +18,13 @@ import androidx.core.view.NestedScrollingParent2
 import androidx.core.view.ViewCompat
 import kotlin.math.abs
 
-class ElasticView @JvmOverloads constructor(
+class ElasticLayout @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
 ) :
     LinearLayout(context, attrs, defStyleAttr), NestedScrollingParent2 {
-    private val TAG = "ElasticView"
+    private val TAG = "ElasticLayout"
 
     //header
     private var headerAdapter: HeaderAdapter? = null
@@ -52,36 +52,71 @@ class ElasticView @JvmOverloads constructor(
     //当前是否允许fling
     private var allowFling = true
 
+
+    /**
+     * 可以通过设置isRefreshing标志位来控制刷新与否
+     * 也可以通过代码手动调用刷新
+     * @see sl.view.elasticviewlibrary.ElasticLayout.headerRefresh
+     * 可以设置动画时间
+     *  使用这个方法停止刷新
+     *  @see sl.view.elasticviewlibrary.ElasticLayout.headerRefreshStop
+     */
+    var isRefreshing = false
+    set(value) {
+        if (value)
+            headerRefresh(150)
+        else
+            headerRefreshStop("完成")
+        field = value
+    }
+
+    /**
+     * 上拉加载不提供  *主动加载*
+     * 设置为false 即停止加载动画
+     * 也可以通过调用
+     * @see sl.view.elasticviewlibrary.ElasticLayout.footerLoadStop
+     */
+    var isLoading = false
+    set(value) {
+        if (!value){
+            footerLoadStop("完成")
+        }
+        field = value
+    }
+
 //    //弹回动画锁
 //    private val lock = ReentrantLock()
 
     //事件监听
     private var listener: OnEventListener? = null
 
-    //加载完成的回调
-    private val refreshCallBack = object : PullCallBack {
-        override fun over() {
-            headerAdapter!!.isDoing = false
-            postDelayed({
-                springBack(getScrollOffset(), 300)
-            }, 300)
-        }
-    }
-    private val loadCallBack = object : PullCallBack {
-        override fun over() {
-            footerAdapter!!.isDoing = false
-            postDelayed({
-                springBack(getScrollOffset(), 300)
-            }, 300)
-        }
-    }
+//    //加载完成的回调
+//    private val refreshCallBack = object : PullCallBack {
+//        override fun over() {
+////            isRefreshing = false
+//            postDelayed({
+//                isRefreshing = false
+////                springBack(getScrollOffset(), 300)
+//            }, 300)
+//        }
+//    }
+//    private val loadCallBack = object : PullCallBack {
+//        override fun over() {
+//            postDelayed({
+//                isLoading = false
+//            },300)
+////            isLoading = false
+////            postDelayed({
+////                springBack(getScrollOffset(), 300)
+////            }, 300)
+//        }
+//    }
 
     init {
         //禁止裁剪布局,使得在页面外的view依然能显示
         this.clipChildren = false
         this.clipToPadding = false
     }
-
 
     //处理嵌套滑动
     override fun onNestedScrollAccepted(child: View, target: View, axes: Int, type: Int) {}
@@ -111,10 +146,10 @@ class ElasticView @JvmOverloads constructor(
                 /**
                  * 这个判断很 重要
                  */
-                if (!allowFling)return
+                if (!allowFling) return
                 isFling = true
                 allowFling = true
-                if (abs(scrollOffset) >= 100 || abs(dx+dy)*dampingTemp < 10) {
+                if (abs(scrollOffset) >= 100 || abs(dx + dy) * dampingTemp < 10) {
                     allowFling = false//禁止fling
                     springBack(scrollOffset, animTimeShort)
                     return
@@ -148,8 +183,8 @@ class ElasticView @JvmOverloads constructor(
         dxUnconsumed: Int,
         dyUnconsumed: Int,
         type: Int
-    ) {}
-
+    ) {
+    }
 
 
     //private var isFirstStopScrollOnTouch = false
@@ -171,9 +206,9 @@ class ElasticView @JvmOverloads constructor(
         isMove = false
         //达到加载条件
         if (headerAdapter != null && scrollOffset < 0 && scrollOffset <= -headerAdapter!!.offset) {
-            springBack(headerAdapter!!.offset + scrollOffset, animTimeShort)
-            if (isLoading()) return
-            headerAdapter!!.isDoing = true
+            springBack(scrollOffset+headerAdapter!!.offset,animTimeShort)
+            if (isLoadingOrRefreshing()) return
+            isRefreshing = true
             headerAdapter!!.onDo()
             listener?.onRefresh()
             return
@@ -181,8 +216,9 @@ class ElasticView @JvmOverloads constructor(
         //达到加载条件
         if (footerAdapter != null && scrollOffset > 0 && scrollOffset >= footerAdapter!!.offset) {
             springBack(scrollOffset - footerAdapter!!.offset, animTimeShort)
-            if (isLoading()) return
+            if (isLoadingOrRefreshing()) return
             footerAdapter!!.isDoing = true
+            isLoading = true
             footerAdapter!!.onDo()
             listener?.onLoad()
             return
@@ -197,7 +233,7 @@ class ElasticView @JvmOverloads constructor(
         } else {
             super.scrollBy(x, 0)
         }
-        if (isLoading()) return
+        if (isLoadingOrRefreshing()) return
         val scrollOffset = getScrollOffset()
         //更新控件header，footer状态
         if (scrollOffset < 0) {
@@ -242,58 +278,58 @@ class ElasticView @JvmOverloads constructor(
     /**
      * 调用头部刷新
      */
-    fun headerRefresh() {
+    fun headerRefresh(time:Long = 150L) {
         if (headerAdapter == null) return
-        if (!isLoading()) {
-            scrollBy(0, -headerAdapter!!.offset)
-            headerAdapter!!.isDoing = true
+        also { !isLoading }.post {
+            if (getScrollOffset() == 0) {
+                animate().setInterpolator { p0 ->
+                    if (orientation == VERTICAL)
+                        scrollTo(0, ((-headerAdapter!!.offset - 1) * p0).toInt())
+                    else
+                        scrollTo(((-headerAdapter!!.offset - 1) * p0).toInt(), 0)
+                    p0
+                }.setDuration(time).start()
+            }
+            //if (getScrollOffset() > -headerAdapter!!.offset)return@post
             headerAdapter!!.onDo()
             listener?.onRefresh()
         }
     }
 
     /**
-     * 停止刷新动画
+     * 停止刷新
      */
     fun headerRefreshStop(msg: String) {
-        if (headerAdapter == null) return
+        if(headerAdapter == null) return
         headerAdapter!!.overDo(msg)
+        postDelayed({
+            springBack(getScrollOffset(),animTimeLong)
+        },300)
     }
 
     /**
-     * 调用底部加载
-     */
-    fun footerLoad() {
-        if (footerAdapter == null) return
-        if (!isLoading()) {
-            scrollBy(0, footerAdapter!!.offset)
-            footerAdapter!!.isDoing = true
-            footerAdapter!!.onDo()
-            listener?.onLoad()
-        }
-    }
-
-    /**
-     * 停止加载动画
+     * 停止加载
      */
     fun footerLoadStop(msg: String) {
         if (footerAdapter == null) return
         footerAdapter!!.overDo(msg)
+        postDelayed({
+            springBack(getScrollOffset(), animTimeLong)
+        }, 300)
     }
 
     /**
      * 获取X或者Y的滚动值
      */
     private fun getScrollOffset(): Int {
-        val offset = if (orientation == VERTICAL)
+        return if (orientation == VERTICAL)
             scrollY
         else
             scrollX
-        return offset
     }
 
     //判断当前是否处于刷新加载状态
-    private fun isLoading(): Boolean {
+    private fun isLoadingOrRefreshing(): Boolean {
         return ((headerAdapter != null && headerAdapter!!.isDoing)
                 || (footerAdapter != null && footerAdapter!!.isDoing))
     }
@@ -317,7 +353,7 @@ class ElasticView @JvmOverloads constructor(
 
     //计算阻尼变化
     private fun calcDamping() {
-        if (!isDecrement)return
+        if (!isDecrement) return
         //val offset = abs(getScrollXY()).toDouble()
         //双曲正切函数(e^x-e^(-x))/(e^x+e^(-x)),随着x递增，y从零开始增加无限趋近于0
         //dampingTemp = damping * (1-((exp(offset) - exp(-offset))/(exp(offset) + exp(-offset)))).toFloat()
@@ -335,14 +371,14 @@ class ElasticView @JvmOverloads constructor(
     private fun springBack(offset: Int, animTime: Long) {
         animator = if (animator != null) {
             animator!!.cancel()
-            val tmp =-
-                if (isLoading()) {
-                    getScrollOffset() +
-                            if (headerAdapter != null &&  headerAdapter!!.isDoing) headerAdapter!!.offset
-                            else if (footerAdapter != null && footerAdapter!!.isDoing) -footerAdapter!!.offset
-                            else -offset
-                }else
-                    offset
+            val tmp = -
+            if (isLoadingOrRefreshing()) {
+                getScrollOffset() +
+                        if (headerAdapter != null && headerAdapter!!.isDoing) headerAdapter!!.offset
+                        else if (footerAdapter != null && footerAdapter!!.isDoing) -footerAdapter!!.offset
+                        else -offset
+            } else
+                offset
             ValueAnimator.ofInt(0, tmp)
         } else
             ValueAnimator.ofInt(0, -offset)
@@ -376,7 +412,7 @@ class ElasticView @JvmOverloads constructor(
 
     fun setHeaderAdapter(adapter: HeaderAdapter) {
         headerAdapter = adapter
-        headerAdapter!!.setPullCallBack(refreshCallBack)
+//        headerAdapter!!.setPullCallBack(refreshCallBack)
         addHeaderView(headerAdapter!!.getContentView(this))
     }
 
@@ -402,7 +438,7 @@ class ElasticView @JvmOverloads constructor(
 
     fun setFooterAdapter(adapter: FooterAdapter) {
         footerAdapter = adapter
-        footerAdapter!!.setPullCallBack(loadCallBack)
+//        footerAdapter!!.setPullCallBack(loadCallBack)
         addFooterView(footerAdapter!!.getContentView(this))
     }
 
@@ -423,7 +459,7 @@ class ElasticView @JvmOverloads constructor(
         else
             layoutParams.rightMargin = -footerAdapter!!.offset
         post {
-            addView(view, childCount,layoutParams)
+            addView(view, childCount, layoutParams)
         }
     }
 
@@ -439,15 +475,14 @@ class ElasticView @JvmOverloads constructor(
      */
     abstract class BaseAdapter(val offset: Int) {
         var isDoing = false
-        lateinit var callBack: PullCallBack
 
         /**在这里生成一个view，这个view将会被放置到列表主体的尾部*/
         abstract fun getContentView(viewGroup: ViewGroup): View
 
-        /**设置回调,通过它通知ElasticView加载完成，执行完成动画*/
-        fun setPullCallBack(callBack: PullCallBack) {
-            this.callBack = callBack
-        }
+//        /**设置回调,通过它通知ElasticView加载完成，执行完成动画*/
+//        fun setPullCallBack(callBack: PullCallBack) {
+//            this.callBack = callBack
+//        }
 
         /**
          * 滑动进度
@@ -468,10 +503,8 @@ class ElasticView @JvmOverloads constructor(
 
         /**加载完成,通知ElasticView播放完成动画*/
         open fun overDo(msg: String) {
-            callBack.over()
             isDoing = false
         }
-
     }
 
     abstract class HeaderAdapter(offset: Int) : BaseAdapter(offset) {}
