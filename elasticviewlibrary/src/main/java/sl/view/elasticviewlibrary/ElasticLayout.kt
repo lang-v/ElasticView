@@ -8,15 +8,20 @@ package sl.view.elasticviewlibrary
  * 设置orientation以确定布局纵横滑动
  */
 import android.animation.Animator
+import android.animation.TimeInterpolator
 import android.animation.ValueAnimator
 import android.content.Context
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import androidx.core.view.NestedScrollingParent2
 import androidx.core.view.ViewCompat
+import java.lang.Math.pow
 import kotlin.math.abs
+import kotlin.math.pow
+import kotlin.math.tanh
 
 class ElasticLayout @JvmOverloads constructor(
     context: Context,
@@ -62,13 +67,13 @@ class ElasticLayout @JvmOverloads constructor(
      *  @see sl.view.elasticviewlibrary.ElasticLayout.headerRefreshStop
      */
     var isRefreshing = false
-    set(value) {
-        if (value)
-            headerRefresh(150)
-        else
-            headerRefreshStop("完成")
-        field = value
-    }
+        set(value) {
+            if (value)
+                headerRefresh(150)
+            else
+                headerRefreshStop("完成")
+            field = value
+        }
 
     /**
      * 上拉加载不提供  *主动加载*
@@ -77,12 +82,12 @@ class ElasticLayout @JvmOverloads constructor(
      * @see sl.view.elasticviewlibrary.ElasticLayout.footerLoadStop
      */
     var isLoading = false
-    set(value) {
-        if (!value){
-            footerLoadStop("完成")
+        set(value) {
+            if (!value) {
+                footerLoadStop("完成")
+            }
+            field = value
         }
-        field = value
-    }
 
 //    //弹回动画锁
 //    private val lock = ReentrantLock()
@@ -206,7 +211,7 @@ class ElasticLayout @JvmOverloads constructor(
         isMove = false
         //达到加载条件
         if (headerAdapter != null && scrollOffset < 0 && scrollOffset <= -headerAdapter!!.offset) {
-            springBack(scrollOffset+headerAdapter!!.offset,animTimeShort)
+            springBack(scrollOffset + headerAdapter!!.offset, animTimeShort)
             if (isLoadingOrRefreshing()) return
             isRefreshing = true
             headerAdapter!!.onDo()
@@ -238,16 +243,16 @@ class ElasticLayout @JvmOverloads constructor(
         //更新控件header，footer状态
         if (scrollOffset < 0) {
             if (headerAdapter == null) return
+            headerAdapter!!.scrollProgress(-scrollOffset)
             if (-scrollOffset <= headerAdapter!!.offset) {
-                headerAdapter!!.scrollProgress(-scrollOffset)
                 headerAdapter!!.pullToDo()
             } else {
                 headerAdapter!!.releaseToDo()
             }
         } else {
             if (footerAdapter == null) return
+            footerAdapter!!.scrollProgress(-scrollOffset)
             if (scrollOffset <= footerAdapter!!.offset) {
-                footerAdapter!!.scrollProgress(-scrollOffset)
                 footerAdapter!!.pullToDo()
             } else {
                 footerAdapter!!.releaseToDo()
@@ -278,7 +283,7 @@ class ElasticLayout @JvmOverloads constructor(
     /**
      * 调用头部刷新
      */
-    fun headerRefresh(time:Long = 150L) {
+    fun headerRefresh(time: Long = 150L) {
         if (headerAdapter == null) return
         also { !isLoading }.post {
             if (getScrollOffset() == 0) {
@@ -300,11 +305,11 @@ class ElasticLayout @JvmOverloads constructor(
      * 停止刷新
      */
     fun headerRefreshStop(msg: String) {
-        if(headerAdapter == null) return
+        if (headerAdapter == null) return
         headerAdapter!!.overDo(msg)
         postDelayed({
-            springBack(getScrollOffset(),animTimeLong)
-        },300)
+            springBack(getScrollOffset(), animTimeLong)
+        }, 300)
     }
 
     /**
@@ -382,6 +387,10 @@ class ElasticLayout @JvmOverloads constructor(
             ValueAnimator.ofInt(0, tmp)
         } else
             ValueAnimator.ofInt(0, -offset)
+        //增加插值器，让弹回的动画看上去更加顺滑，弹回的速度越来越慢
+        animator!!.interpolator = TimeInterpolator {
+            -(it - 1).pow(2) + 1
+        }
         animator!!.duration = animTime
         val scrollOffset = getScrollOffset()
         animator!!.addUpdateListener { animation ->
@@ -486,7 +495,7 @@ class ElasticLayout @JvmOverloads constructor(
 
         /**
          * 滑动进度
-         * @param progress in 0 .. offset
+         * @param progress in 0 .. offset 当超过offset时依旧会继续调用知道松开手指
          */
         open fun scrollProgress(progress: Int) {}
 
