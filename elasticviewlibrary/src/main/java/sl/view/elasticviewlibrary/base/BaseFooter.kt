@@ -1,6 +1,8 @@
 package sl.view.elasticviewlibrary.base
 
 import android.content.Context
+import android.opengl.Visibility
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,10 +13,10 @@ import sl.view.elasticviewlibrary.ElasticLayout
 import sl.view.elasticviewlibrary.R
 
 open class BaseFooter(private val context: Context, offset:Int):ElasticLayout.FooterAdapter(offset) {
-    private lateinit var view: View
-    private val icon by lazy { view.findViewById<ImageView>(R.id.img) }
-    private val progressBar by lazy { view.findViewById<ProgressBar>(R.id.progressBar) }
-    private val text by lazy { view.findViewById<TextView>(R.id.text) }
+    protected lateinit var view: View
+    protected val icon by lazy { view.findViewById<ImageView>(R.id.img) }
+    protected val progressBar by lazy { view.findViewById<ProgressBar>(R.id.progressBar) }
+    protected val text by lazy { view.findViewById<TextView>(R.id.text) }
 
     //icon的方向
     private val DIRECTION_DOWN = true
@@ -53,6 +55,7 @@ open class BaseFooter(private val context: Context, offset:Int):ElasticLayout.Fo
         icon.visibility = View.INVISIBLE
         super.onDo()
     }
+
     override fun overDo(msg:String) {
         text.text = msg
         progressBar.visibility = View.INVISIBLE

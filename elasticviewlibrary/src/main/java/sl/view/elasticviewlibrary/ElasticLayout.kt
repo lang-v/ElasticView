@@ -89,33 +89,9 @@ class ElasticLayout @JvmOverloads constructor(
             field = value
         }
 
-//    //弹回动画锁
-//    private val lock = ReentrantLock()
-
     //事件监听
     private var listener: OnEventListener? = null
-
-//    //加载完成的回调
-//    private val refreshCallBack = object : PullCallBack {
-//        override fun over() {
-////            isRefreshing = false
-//            postDelayed({
-//                isRefreshing = false
-////                springBack(getScrollOffset(), 300)
-//            }, 300)
-//        }
-//    }
-//    private val loadCallBack = object : PullCallBack {
-//        override fun over() {
-//            postDelayed({
-//                isLoading = false
-//            },300)
-////            isLoading = false
-////            postDelayed({
-////                springBack(getScrollOffset(), 300)
-////            }, 300)
-//        }
-//    }
+    private var scrollListener:OnScrollListener?=null
 
     init {
         //禁止裁剪布局,使得在页面外的view依然能显示
@@ -239,6 +215,7 @@ class ElasticLayout @JvmOverloads constructor(
             super.scrollBy(x, 0)
         }
         if (isLoadingOrRefreshing()) return
+        scrollListener?.onScrolled(x,y)
         val scrollOffset = getScrollOffset()
         //更新控件header，footer状态
         if (scrollOffset < 0) {
@@ -394,10 +371,14 @@ class ElasticLayout @JvmOverloads constructor(
         animator!!.duration = animTime
         val scrollOffset = getScrollOffset()
         animator!!.addUpdateListener { animation ->
-            if (orientation == VERTICAL)
+            if (orientation == VERTICAL) {
+                scrollListener?.onScrolled(0,scrollOffset+(animation.animatedValue as Int)-getScrollOffset())
                 scrollTo(scrollX, scrollOffset + animation.animatedValue as Int)
-            else
+            }
+            else {
+                scrollListener?.onScrolled(scrollOffset+(animation.animatedValue as Int)-getScrollOffset(),0)
                 scrollTo(scrollOffset + animation.animatedValue as Int, scrollY)
+            }
         }
         animator!!.addListener(object : Animator.AnimatorListener {
             override fun onAnimationRepeat(animation: Animator?) {}
@@ -479,6 +460,10 @@ class ElasticLayout @JvmOverloads constructor(
         this.listener = listener
     }
 
+    fun setOnScrollListener(listener:OnScrollListener){
+        scrollListener = listener
+    }
+
     /**
      * 适配器基类   Header Footer都是派生于它
      */
@@ -530,6 +515,14 @@ class ElasticLayout @JvmOverloads constructor(
 
         //上拉加载
         fun onLoad()
+    }
+
+    interface OnScrollListener{
+        /**
+         * @param dx x变化值 移动的长度
+         * @param dy y变化值 移动的长度
+         */
+        fun onScrolled(dx:Int,dy:Int)
     }
 
 }

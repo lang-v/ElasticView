@@ -11,10 +11,10 @@ import sl.view.elasticviewlibrary.ElasticLayout
 import sl.view.elasticviewlibrary.R
 
 open class BaseHeader(private val context: Context, offset: Int) : ElasticLayout.HeaderAdapter(offset) {
-    private lateinit var view: View
-    private val icon by lazy { view.findViewById<ImageView>(R.id.img) }
-    private val progressBar by lazy { view.findViewById<ProgressBar>(R.id.progressBar) }
-    private val text by lazy { view.findViewById<TextView>(R.id.text) }
+    protected lateinit var view: View
+    protected val icon by lazy { view.findViewById<ImageView>(R.id.img) }
+    protected val progressBar by lazy { view.findViewById<ProgressBar>(R.id.progressBar) }
+    protected val text by lazy { view.findViewById<TextView>(R.id.text) }
 
     //icon的方向
     private val DIRECTION_DOWN = true
