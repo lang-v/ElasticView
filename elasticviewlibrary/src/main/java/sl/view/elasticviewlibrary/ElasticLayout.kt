@@ -15,6 +15,8 @@ import android.util.AttributeSet
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import androidx.core.view.NestedScrollingChild2
+import androidx.core.view.NestedScrollingChildHelper
 import androidx.core.view.NestedScrollingParent2
 import androidx.core.view.ViewCompat
 import kotlin.math.abs
@@ -25,7 +27,7 @@ class ElasticLayout @JvmOverloads constructor(
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
 ) :
-    LinearLayout(context, attrs, defStyleAttr), NestedScrollingParent2 {
+    LinearLayout(context, attrs, defStyleAttr), NestedScrollingParent2, NestedScrollingChild2 {
     private val TAG = "ElasticLayout"
 
     //header
@@ -88,7 +90,7 @@ class ElasticLayout @JvmOverloads constructor(
 
     //事件监听
     private var listener: OnEventListener? = null
-    private var scrollListener:OnScrollListener?=null
+    private var scrollListener: OnScrollListener? = null
 
     init {
         //禁止裁剪布局,使得在页面外的view依然能显示
@@ -186,11 +188,11 @@ class ElasticLayout @JvmOverloads constructor(
             springBack(scrollOffset + headerAdapter!!.offset, animTimeShort)
             if (isLoadingOrRefreshing()) return
             headerAdapter!!.onRelease()
-            if(cancel){
+            if (cancel) {
                 cancel = false
                 headerAdapter!!.onCancel()
-                springBack(getScrollOffset(),cancelAnimationTime)
-            }else {
+                springBack(getScrollOffset(), cancelAnimationTime)
+            } else {
                 isRefreshing = true
                 headerAdapter!!.isDoing = true
                 headerAdapter!!.onDo()
@@ -203,11 +205,11 @@ class ElasticLayout @JvmOverloads constructor(
             springBack(scrollOffset - footerAdapter!!.offset, animTimeShort)
             if (isLoadingOrRefreshing()) return
             footerAdapter!!.onRelease()
-            if(cancel){
+            if (cancel) {
                 cancel = false
                 footerAdapter!!.onCancel()
-                springBack(getScrollOffset(),cancelAnimationTime)
-            }else {
+                springBack(getScrollOffset(), cancelAnimationTime)
+            } else {
                 footerAdapter!!.isDoing = true
                 isLoading = true
                 footerAdapter!!.onDo()
@@ -218,8 +220,51 @@ class ElasticLayout @JvmOverloads constructor(
         springBack(scrollOffset, animTimeLong)
     }
 
+    //处理不需要嵌套滑动，向上级传递
+    private val mChildHelper = NestedScrollingChildHelper(this)
+    override fun startNestedScroll(axes: Int, type: Int): Boolean {
+        return mChildHelper.startNestedScroll(axes, type)
+    }
+
+    override fun stopNestedScroll(type: Int) {
+        mChildHelper.stopNestedScroll(type)
+    }
+
+    override fun hasNestedScrollingParent(type: Int): Boolean {
+        return mChildHelper.hasNestedScrollingParent(type)
+    }
+
+    override fun dispatchNestedScroll(
+        dxConsumed: Int,
+        dyConsumed: Int,
+        dxUnconsumed: Int,
+        dyUnconsumed: Int,
+        offsetInWindow: IntArray?,
+        type: Int
+    ): Boolean {
+        return mChildHelper.dispatchNestedScroll(
+            dxConsumed,
+            dyConsumed,
+            dxUnconsumed,
+            dyUnconsumed,
+            offsetInWindow,
+            type
+        )
+    }
+
+    override fun dispatchNestedPreScroll(
+        dx: Int,
+        dy: Int,
+        consumed: IntArray?,
+        offsetInWindow: IntArray?,
+        type: Int
+    ): Boolean {
+        return mChildHelper.dispatchNestedPreScroll(dx, dy, consumed, offsetInWindow, type)
+    }
+
+
     override fun scrollBy(x: Int, y: Int) {
-        if(scrollListener?.preOnScrolled(scrollX,scrollY,x,y)!!)return
+        scrollListener?.let { if (it.preOnScrolled(scrollX, scrollY, x, y)) return }
         //根据布局选择移动水平垂直
         if (orientation == VERTICAL) {
             super.scrollBy(0, y)
@@ -227,7 +272,7 @@ class ElasticLayout @JvmOverloads constructor(
             super.scrollBy(x, 0)
         }
         if (isLoadingOrRefreshing()) return
-        scrollListener?.onScrolled(x,y)
+        scrollListener?.onScrolled(x, y)
         val scrollOffset = getScrollOffset()
         //更新控件header，footer状态
         if (scrollOffset < 0) {
@@ -365,13 +410,14 @@ class ElasticLayout @JvmOverloads constructor(
      * 取消所有事件，View直接弹回 调用adapter.onCancel()
      * @param animTime 弹回的时间
      */
-    fun cancelLoading(animTime: Long){
-        if(cancel)return
+    fun cancelLoading(animTime: Long) {
+        if (cancel) return
         cancel = true
         cancelAnimationTime = animTime
     }
 
     private var animator: ValueAnimator? = null
+
     //弹回动画
     @Synchronized
     private fun springBack(offset: Int, animTime: Long) {
@@ -396,11 +442,16 @@ class ElasticLayout @JvmOverloads constructor(
         val scrollOffset = getScrollOffset()
         animator!!.addUpdateListener { animation ->
             if (orientation == VERTICAL) {
-                scrollListener?.onScrolled(0,scrollOffset+(animation.animatedValue as Int)-getScrollOffset())
+                scrollListener?.onScrolled(
+                    0,
+                    scrollOffset + (animation.animatedValue as Int) - getScrollOffset()
+                )
                 scrollTo(scrollX, scrollOffset + animation.animatedValue as Int)
-            }
-            else {
-                scrollListener?.onScrolled(scrollOffset+(animation.animatedValue as Int)-getScrollOffset(),0)
+            } else {
+                scrollListener?.onScrolled(
+                    scrollOffset + (animation.animatedValue as Int) - getScrollOffset(),
+                    0
+                )
                 scrollTo(scrollOffset + animation.animatedValue as Int, scrollY)
             }
         }
@@ -484,7 +535,7 @@ class ElasticLayout @JvmOverloads constructor(
         this.listener = listener
     }
 
-    fun setOnScrollListener(listener:OnScrollListener){
+    fun setOnScrollListener(listener: OnScrollListener) {
         scrollListener = listener
     }
 
@@ -510,7 +561,7 @@ class ElasticLayout @JvmOverloads constructor(
         open fun releaseToDo() {}
 
         /**释放手指时调用*/
-        open fun onRelease(){}
+        open fun onRelease() {}
 
         /**加载中*/
         open fun onDo() {
@@ -520,7 +571,7 @@ class ElasticLayout @JvmOverloads constructor(
         /**
          * 与onDo对应 在还没加载之前调用了cancel
          */
-        open fun onCancel(){
+        open fun onCancel() {
 
         }
 
@@ -547,7 +598,7 @@ class ElasticLayout @JvmOverloads constructor(
         fun onLoad()
     }
 
-    interface OnScrollListener{
+    interface OnScrollListener {
 
         /**
          * @param scrollX
@@ -557,11 +608,12 @@ class ElasticLayout @JvmOverloads constructor(
          * @param dy 还未滑动的偏移值
          * @return true 拦截滑动事件
          */
-        fun preOnScrolled(scrollX:Int,scrollY:Int,dx: Int,dy: Int):Boolean
+        fun preOnScrolled(scrollX: Int, scrollY: Int, dx: Int, dy: Int): Boolean
+
         /**
          * @param dx x变化值 移动的长度
          * @param dy y变化值 移动的长度
          */
-        fun onScrolled(dx:Int,dy:Int)
+        fun onScrolled(dx: Int, dy: Int)
     }
 }
