@@ -12,16 +12,13 @@ import android.animation.TimeInterpolator
 import android.animation.ValueAnimator
 import android.content.Context
 import android.util.AttributeSet
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import androidx.core.view.NestedScrollingParent2
 import androidx.core.view.ViewCompat
-import java.lang.Math.pow
 import kotlin.math.abs
 import kotlin.math.pow
-import kotlin.math.tanh
 
 class ElasticLayout @JvmOverloads constructor(
     context: Context,
@@ -111,7 +108,6 @@ class ElasticLayout @JvmOverloads constructor(
         }) != 0
     }
 
-
     /**
      * @param consumed 记录parent消耗的距离，consumed[0]-->X  [1]-->y
      * 如果parent消耗完，那么child就不会继续处理了
@@ -189,25 +185,41 @@ class ElasticLayout @JvmOverloads constructor(
         if (headerAdapter != null && scrollOffset < 0 && scrollOffset <= -headerAdapter!!.offset) {
             springBack(scrollOffset + headerAdapter!!.offset, animTimeShort)
             if (isLoadingOrRefreshing()) return
-            isRefreshing = true
-            headerAdapter!!.onDo()
-            listener?.onRefresh()
+            headerAdapter!!.onRelease()
+            if(cancel){
+                cancel = false
+                headerAdapter!!.onCancel()
+                springBack(getScrollOffset(),cancelAnimationTime)
+            }else {
+                isRefreshing = true
+                headerAdapter!!.isDoing = true
+                headerAdapter!!.onDo()
+                listener?.onRefresh()
+            }
             return
         }
         //达到加载条件
         if (footerAdapter != null && scrollOffset > 0 && scrollOffset >= footerAdapter!!.offset) {
             springBack(scrollOffset - footerAdapter!!.offset, animTimeShort)
             if (isLoadingOrRefreshing()) return
-            footerAdapter!!.isDoing = true
-            isLoading = true
-            footerAdapter!!.onDo()
-            listener?.onLoad()
+            footerAdapter!!.onRelease()
+            if(cancel){
+                cancel = false
+                footerAdapter!!.onCancel()
+                springBack(getScrollOffset(),cancelAnimationTime)
+            }else {
+                footerAdapter!!.isDoing = true
+                isLoading = true
+                footerAdapter!!.onDo()
+                listener?.onLoad()
+            }
             return
         }
         springBack(scrollOffset, animTimeLong)
     }
 
     override fun scrollBy(x: Int, y: Int) {
+        if(scrollListener?.preOnScrolled(scrollX,scrollY,x,y)!!)return
         //根据布局选择移动水平垂直
         if (orientation == VERTICAL) {
             super.scrollBy(0, y)
@@ -283,7 +295,7 @@ class ElasticLayout @JvmOverloads constructor(
      */
     fun headerRefreshStop(msg: String) {
         if (headerAdapter == null) return
-        headerAdapter!!.overDo(msg)
+        headerAdapter!!.onDone(msg)
         postDelayed({
             springBack(getScrollOffset(), animTimeLong)
         }, 300)
@@ -294,7 +306,7 @@ class ElasticLayout @JvmOverloads constructor(
      */
     fun footerLoadStop(msg: String) {
         if (footerAdapter == null) return
-        footerAdapter!!.overDo(msg)
+        footerAdapter!!.onDone(msg)
         postDelayed({
             springBack(getScrollOffset(), animTimeLong)
         }, 300)
@@ -346,8 +358,20 @@ class ElasticLayout @JvmOverloads constructor(
         dampingTemp = damping / count
     }
 
-    private var animator: ValueAnimator? = null
+    private var cancel = false
+    private var cancelAnimationTime = 100L
 
+    /**
+     * 取消所有事件，View直接弹回 调用adapter.onCancel()
+     * @param animTime 弹回的时间
+     */
+    fun cancelLoading(animTime: Long){
+        if(cancel)return
+        cancel = true
+        cancelAnimationTime = animTime
+    }
+
+    private var animator: ValueAnimator? = null
     //弹回动画
     @Synchronized
     private fun springBack(offset: Int, animTime: Long) {
@@ -473,11 +497,6 @@ class ElasticLayout @JvmOverloads constructor(
         /**在这里生成一个view，这个view将会被放置到列表主体的尾部*/
         abstract fun getContentView(viewGroup: ViewGroup): View
 
-//        /**设置回调,通过它通知ElasticView加载完成，执行完成动画*/
-//        fun setPullCallBack(callBack: PullCallBack) {
-//            this.callBack = callBack
-//        }
-
         /**
          * 滑动进度
          * @param progress in 0 .. offset 当超过offset时依旧会继续调用知道松开手指
@@ -490,15 +509,27 @@ class ElasticLayout @JvmOverloads constructor(
         /**释放加载*/
         open fun releaseToDo() {}
 
+        /**释放手指时调用*/
+        open fun onRelease(){}
+
         /**加载中*/
         open fun onDo() {
             isDoing = true
         }
 
+        /**
+         * 与onDo对应 在还没加载之前调用了cancel
+         */
+        open fun onCancel(){
+
+        }
+
         /**加载完成,通知ElasticView播放完成动画*/
-        open fun overDo(msg: String) {
+        open fun onDone(msg: String) {
             isDoing = false
         }
+
+
     }
 
     abstract class HeaderAdapter(offset: Int) : BaseAdapter(offset) {}
@@ -507,7 +538,6 @@ class ElasticLayout @JvmOverloads constructor(
     interface PullCallBack {
         fun over()
     }
-
 
     interface OnEventListener {
         //下拉刷新
@@ -518,11 +548,20 @@ class ElasticLayout @JvmOverloads constructor(
     }
 
     interface OnScrollListener{
+
+        /**
+         * @param scrollX
+         * @param scrollY 当前滑动到的位置x ，y
+         *
+         * @param dx
+         * @param dy 还未滑动的偏移值
+         * @return true 拦截滑动事件
+         */
+        fun preOnScrolled(scrollX:Int,scrollY:Int,dx: Int,dy: Int):Boolean
         /**
          * @param dx x变化值 移动的长度
          * @param dy y变化值 移动的长度
          */
         fun onScrolled(dx:Int,dy:Int)
     }
-
 }

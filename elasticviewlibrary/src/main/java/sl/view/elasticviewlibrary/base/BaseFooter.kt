@@ -1,8 +1,6 @@
 package sl.view.elasticviewlibrary.base
 
 import android.content.Context
-import android.opengl.Visibility
-import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -56,11 +54,11 @@ open class BaseFooter(private val context: Context, offset:Int):ElasticLayout.Fo
         super.onDo()
     }
 
-    override fun overDo(msg:String) {
+    override fun onDone(msg:String) {
         text.text = msg
         progressBar.visibility = View.INVISIBLE
         icon.visibility = View.VISIBLE
         direction = DIRECTION_UP
-        super.overDo(msg)
+        super.onDone(msg)
     }
 }
