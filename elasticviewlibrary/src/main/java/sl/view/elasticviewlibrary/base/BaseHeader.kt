@@ -61,6 +61,7 @@ open class BaseHeader(private val context: Context, offset: Int) : ElasticLayout
         icon.visibility = View.INVISIBLE
         super.onDo()
     }
+
     override fun onDone(msg:String) {
         text.text = msg
         progressBar.visibility = View.INVISIBLE

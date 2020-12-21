@@ -15,19 +15,18 @@ import android.util.AttributeSet
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
-import androidx.core.view.NestedScrollingChild2
-import androidx.core.view.NestedScrollingChildHelper
+import android.widget.Toast
 import androidx.core.view.NestedScrollingParent2
 import androidx.core.view.ViewCompat
 import kotlin.math.abs
 import kotlin.math.pow
 
-class ElasticLayout @JvmOverloads constructor(
+open class ElasticLayout @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
 ) :
-    LinearLayout(context, attrs, defStyleAttr), NestedScrollingParent2, NestedScrollingChild2 {
+    LinearLayout(context, attrs, defStyleAttr), NestedScrollingParent2 {
     private val TAG = "ElasticLayout"
 
     //header
@@ -194,9 +193,8 @@ class ElasticLayout @JvmOverloads constructor(
                 springBack(getScrollOffset(), cancelAnimationTime)
             } else {
                 isRefreshing = true
-                headerAdapter!!.isDoing = true
-                headerAdapter!!.onDo()
-                listener?.onRefresh()
+//                headerAdapter!!.onDo()
+//                listener?.onRefresh()
             }
             return
         }
@@ -210,7 +208,6 @@ class ElasticLayout @JvmOverloads constructor(
                 footerAdapter!!.onCancel()
                 springBack(getScrollOffset(), cancelAnimationTime)
             } else {
-                footerAdapter!!.isDoing = true
                 isLoading = true
                 footerAdapter!!.onDo()
                 listener?.onLoad()
@@ -219,49 +216,6 @@ class ElasticLayout @JvmOverloads constructor(
         }
         springBack(scrollOffset, animTimeLong)
     }
-
-    //处理不需要嵌套滑动，向上级传递
-    private val mChildHelper = NestedScrollingChildHelper(this)
-    override fun startNestedScroll(axes: Int, type: Int): Boolean {
-        return mChildHelper.startNestedScroll(axes, type)
-    }
-
-    override fun stopNestedScroll(type: Int) {
-        mChildHelper.stopNestedScroll(type)
-    }
-
-    override fun hasNestedScrollingParent(type: Int): Boolean {
-        return mChildHelper.hasNestedScrollingParent(type)
-    }
-
-    override fun dispatchNestedScroll(
-        dxConsumed: Int,
-        dyConsumed: Int,
-        dxUnconsumed: Int,
-        dyUnconsumed: Int,
-        offsetInWindow: IntArray?,
-        type: Int
-    ): Boolean {
-        return mChildHelper.dispatchNestedScroll(
-            dxConsumed,
-            dyConsumed,
-            dxUnconsumed,
-            dyUnconsumed,
-            offsetInWindow,
-            type
-        )
-    }
-
-    override fun dispatchNestedPreScroll(
-        dx: Int,
-        dy: Int,
-        consumed: IntArray?,
-        offsetInWindow: IntArray?,
-        type: Int
-    ): Boolean {
-        return mChildHelper.dispatchNestedPreScroll(dx, dy, consumed, offsetInWindow, type)
-    }
-
 
     override fun scrollBy(x: Int, y: Int) {
         scrollListener?.let { if (it.preOnScrolled(scrollX, scrollY, x, y)) return }
@@ -418,6 +372,17 @@ class ElasticLayout @JvmOverloads constructor(
 
     private var animator: ValueAnimator? = null
 
+
+    /**
+     * 给弹回动画设置插值器
+     * @see TimeInterpolator
+     */
+    fun setSpringAnimationTimeInterpolator(interpolator: TimeInterpolator) {
+        this.springAnimationTimeInterpolator = interpolator
+    }
+
+    private var springAnimationTimeInterpolator: TimeInterpolator? = null
+
     //弹回动画
     @Synchronized
     private fun springBack(offset: Int, animTime: Long) {
@@ -434,9 +399,16 @@ class ElasticLayout @JvmOverloads constructor(
             ValueAnimator.ofInt(0, tmp)
         } else
             ValueAnimator.ofInt(0, -offset)
-        //增加插值器，让弹回的动画看上去更加顺滑，弹回的速度越来越慢
-        animator!!.interpolator = TimeInterpolator {
-            -(it - 1).pow(2) + 1
+        //增加插值器，让弹回的动画效果丰富
+        if (springAnimationTimeInterpolator != null) {
+            animator!!.interpolator = springAnimationTimeInterpolator
+        } else {
+            //默认插值器
+            //看上去更加顺滑，弹回的速度越来越慢
+            animator!!.interpolator = AnimationInterpolator().Default
+//                TimeInterpolator {
+//                -(it - 1).pow(2) + 1
+//            }
         }
         animator!!.duration = animTime
         val scrollOffset = getScrollOffset()
@@ -461,15 +433,12 @@ class ElasticLayout @JvmOverloads constructor(
             //只有在动画加载完成后才调用刷新
             override fun onAnimationEnd(animation: Animator?) {
                 animator = null
-//                lock.unlock()
             }
 
             //动画取消不执行
             override fun onAnimationCancel(animation: Animator?) {
                 animator = null
-//                lock.unlock()
             }
-
             override fun onAnimationStart(animation: Animator?) {}
         })
         post { animator?.start() }
@@ -615,5 +584,32 @@ class ElasticLayout @JvmOverloads constructor(
          * @param dy y变化值 移动的长度
          */
         fun onScrolled(dx: Int, dy: Int)
+    }
+
+
+    inner class AnimationInterpolator {
+        val Bounce = TimeInterpolator {
+            var t = it / animTimeLong
+            when {
+                t < (1 / 2.75f) -> {
+                    (7.5625f * t * t) / animTimeLong
+                }
+                t < (2 / 2.75f) -> {
+                    t -= (1.5f / 2.75f)
+                    (7.5625f * t * t + .75f) / animTimeLong
+                }
+                t < (2.5 / 2.75) -> {
+                    t -= (2.25f / 2.75f)
+                    (7.5625f * t * t + .9375f) / animTimeLong
+                }
+                else -> {
+                    t -= (2.625f / 2.75f)
+                    (7.5625f * t * t + .984375f) / animTimeLong
+                }
+            }
+        }
+        val Default = TimeInterpolator {
+            -(it - 1).pow(2) + 1
+        }
     }
 }
