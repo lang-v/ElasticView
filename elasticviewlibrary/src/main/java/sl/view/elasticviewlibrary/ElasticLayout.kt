@@ -15,7 +15,6 @@ import android.util.AttributeSet
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
-import android.widget.Toast
 import androidx.core.view.NestedScrollingParent2
 import androidx.core.view.ViewCompat
 import kotlin.math.abs
@@ -103,10 +102,14 @@ open class ElasticLayout @JvmOverloads constructor(
     //此处无须判断child类型
     override fun onStartNestedScroll(child: View, target: View, axes: Int, type: Int): Boolean {
         //判断当前滑动方向是否与ElasticView设置的滑动方向一致 一致则返回true
-        return (axes and when (orientation) {
+        val t = (axes and when (orientation) {
             HORIZONTAL -> ViewCompat.SCROLL_AXIS_HORIZONTAL
             else -> ViewCompat.SCROLL_AXIS_VERTICAL
         }) != 0
+        if(t && animator!=null){
+            animator?.cancel()
+        }
+        return t
     }
 
     /**
@@ -193,8 +196,6 @@ open class ElasticLayout @JvmOverloads constructor(
                 springBack(getScrollOffset(), cancelAnimationTime)
             } else {
                 isRefreshing = true
-//                headerAdapter!!.onDo()
-//                listener?.onRefresh()
             }
             return
         }
@@ -283,7 +284,6 @@ open class ElasticLayout @JvmOverloads constructor(
                     p0
                 }.setDuration(time).start()
             }
-            //if (getScrollOffset() > -headerAdapter!!.offset)return@post
             headerAdapter!!.onDo()
             listener?.onRefresh()
         }
@@ -384,7 +384,6 @@ open class ElasticLayout @JvmOverloads constructor(
     private var springAnimationTimeInterpolator: TimeInterpolator? = null
 
     //弹回动画
-    @Synchronized
     private fun springBack(offset: Int, animTime: Long) {
         animator = if (animator != null) {
             animator!!.cancel()
@@ -405,7 +404,7 @@ open class ElasticLayout @JvmOverloads constructor(
         } else {
             //默认插值器
             //看上去更加顺滑，弹回的速度越来越慢
-            animator!!.interpolator = AnimationInterpolator().Default
+            animator!!.interpolator = timeInterpolator
 //                TimeInterpolator {
 //                -(it - 1).pow(2) + 1
 //            }
@@ -446,7 +445,6 @@ open class ElasticLayout @JvmOverloads constructor(
 
     fun setHeaderAdapter(adapter: HeaderAdapter) {
         headerAdapter = adapter
-//        headerAdapter!!.setPullCallBack(refreshCallBack)
         addHeaderView(headerAdapter!!.getContentView(this))
     }
 
@@ -504,8 +502,14 @@ open class ElasticLayout @JvmOverloads constructor(
         this.listener = listener
     }
 
+    //还有些功能没做好
     fun setOnScrollListener(listener: OnScrollListener) {
         scrollListener = listener
+    }
+
+    private var timeInterpolator = AnimationInterpolator().Default
+    fun setTimeInterpolator(interpolator: TimeInterpolator){
+        this.timeInterpolator = interpolator
     }
 
     /**
