@@ -15,6 +15,7 @@ import android.util.AttributeSet
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import androidx.annotation.ColorInt
 import androidx.core.view.NestedScrollingParent2
 import androidx.core.view.ViewCompat
 import kotlin.math.abs
@@ -88,7 +89,7 @@ open class ElasticLayout @JvmOverloads constructor(
 
     //事件监听
     private var listener: OnEventListener? = null
-    private var scrollListener: OnScrollListener? = null
+    private var scrollListener: OnInterceptScrollListener? = null
 
     init {
         //禁止裁剪布局,使得在页面外的view依然能显示
@@ -106,7 +107,7 @@ open class ElasticLayout @JvmOverloads constructor(
             HORIZONTAL -> ViewCompat.SCROLL_AXIS_HORIZONTAL
             else -> ViewCompat.SCROLL_AXIS_VERTICAL
         }) != 0
-        if(t && animator!=null){
+        if (t && animator != null) {
             animator?.cancel()
         }
         return t
@@ -167,8 +168,6 @@ open class ElasticLayout @JvmOverloads constructor(
     ) {
     }
 
-
-    //private var isFirstStopScrollOnTouch = false
     /**
      * 子view停止滑动
      * 这个方法在整个过程中会被调用3次
@@ -219,7 +218,12 @@ open class ElasticLayout @JvmOverloads constructor(
     }
 
     override fun scrollBy(x: Int, y: Int) {
-        scrollListener?.let { if (it.preOnScrolled(scrollX, scrollY, x, y)) return }
+        scrollListener?.let {
+            if (it.preOnScrolled(scrollX, scrollY, x, y)) {
+                it.onScrolled(x,y)
+                return
+            }
+        }
         //根据布局选择移动水平垂直
         if (orientation == VERTICAL) {
             super.scrollBy(0, y)
@@ -227,7 +231,6 @@ open class ElasticLayout @JvmOverloads constructor(
             super.scrollBy(x, 0)
         }
         if (isLoadingOrRefreshing()) return
-        scrollListener?.onScrolled(x, y)
         val scrollOffset = getScrollOffset()
         //更新控件header，footer状态
         if (scrollOffset < 0) {
@@ -357,6 +360,7 @@ open class ElasticLayout @JvmOverloads constructor(
         dampingTemp = damping / count
     }
 
+    //标志位，标志取消这次加载事件，手指松开后将直接弹回
     private var cancel = false
     private var cancelAnimationTime = 100L
 
@@ -404,25 +408,17 @@ open class ElasticLayout @JvmOverloads constructor(
         } else {
             //默认插值器
             //看上去更加顺滑，弹回的速度越来越慢
-            animator!!.interpolator = timeInterpolator
-//                TimeInterpolator {
-//                -(it - 1).pow(2) + 1
-//            }
+            animator!!.interpolator =
+                TimeInterpolator {
+                    -(it - 1).pow(2) + 1
+                }
         }
         animator!!.duration = animTime
         val scrollOffset = getScrollOffset()
         animator!!.addUpdateListener { animation ->
             if (orientation == VERTICAL) {
-                scrollListener?.onScrolled(
-                    0,
-                    scrollOffset + (animation.animatedValue as Int) - getScrollOffset()
-                )
                 scrollTo(scrollX, scrollOffset + animation.animatedValue as Int)
             } else {
-                scrollListener?.onScrolled(
-                    scrollOffset + (animation.animatedValue as Int) - getScrollOffset(),
-                    0
-                )
                 scrollTo(scrollOffset + animation.animatedValue as Int, scrollY)
             }
         }
@@ -438,6 +434,7 @@ open class ElasticLayout @JvmOverloads constructor(
             override fun onAnimationCancel(animation: Animator?) {
                 animator = null
             }
+
             override fun onAnimationStart(animation: Animator?) {}
         })
         post { animator?.start() }
@@ -458,7 +455,7 @@ open class ElasticLayout @JvmOverloads constructor(
                 headerAdapter!!.offset
             )
             else LayoutParams(headerAdapter!!.offset, LayoutParams.MATCH_PARENT)
-
+        //LinearLayout 使得头部view显示在屏幕外
         if (orientation == VERTICAL)
             layoutParams.topMargin = -headerAdapter!!.offset
         else
@@ -470,7 +467,6 @@ open class ElasticLayout @JvmOverloads constructor(
 
     fun setFooterAdapter(adapter: FooterAdapter) {
         footerAdapter = adapter
-//        footerAdapter!!.setPullCallBack(loadCallBack)
         addFooterView(footerAdapter!!.getContentView(this))
     }
 
@@ -502,14 +498,8 @@ open class ElasticLayout @JvmOverloads constructor(
         this.listener = listener
     }
 
-    //还有些功能没做好
-    fun setOnScrollListener(listener: OnScrollListener) {
+    fun setOnScrollListener(listener: OnInterceptScrollListener) {
         scrollListener = listener
-    }
-
-    private var timeInterpolator = AnimationInterpolator().Default
-    fun setTimeInterpolator(interpolator: TimeInterpolator){
-        this.timeInterpolator = interpolator
     }
 
     /**
@@ -556,12 +546,8 @@ open class ElasticLayout @JvmOverloads constructor(
 
     }
 
-    abstract class HeaderAdapter(offset: Int) : BaseAdapter(offset) {}
-    abstract class FooterAdapter(offset: Int) : BaseAdapter(offset) {}
-
-    interface PullCallBack {
-        fun over()
-    }
+    abstract class HeaderAdapter(offset: Int) : BaseAdapter(offset)
+    abstract class FooterAdapter(offset: Int) : BaseAdapter(offset)
 
     interface OnEventListener {
         //下拉刷新
@@ -571,7 +557,7 @@ open class ElasticLayout @JvmOverloads constructor(
         fun onLoad()
     }
 
-    interface OnScrollListener {
+    interface OnInterceptScrollListener {
 
         /**
          * @param scrollX
@@ -579,19 +565,23 @@ open class ElasticLayout @JvmOverloads constructor(
          *
          * @param dx
          * @param dy 还未滑动的偏移值
-         * @return true 拦截滑动事件
+         * @return true 拦截滑动事件 接着就会调用onScrolled
          */
         fun preOnScrolled(scrollX: Int, scrollY: Int, dx: Int, dy: Int): Boolean
 
         /**
+         * 只有当preOnScrolled返回true时 才会调用onScrolled
          * @param dx x变化值 移动的长度
          * @param dy y变化值 移动的长度
+         * 我现在感觉这玩意可有可无，参数还没有上面那个多
          */
         fun onScrolled(dx: Int, dy: Int)
     }
 
 
+    //后续提供更多的弹回动画插值器
     inner class AnimationInterpolator {
+        //这个没有调好
         val Bounce = TimeInterpolator {
             var t = it / animTimeLong
             when {
