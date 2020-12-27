@@ -417,10 +417,24 @@ open class ElasticLayout @JvmOverloads constructor(
         val scrollOffset = getScrollOffset()
         animator!!.addUpdateListener { animation ->
             if (orientation == VERTICAL) {
+                scrollListener?.onScrolled(
+                    0,
+                    scrollOffset + (animation.animatedValue as Int) - getScrollOffset()
+                )
                 scrollTo(scrollX, scrollOffset + animation.animatedValue as Int)
             } else {
+                scrollListener?.onScrolled(
+                    scrollOffset + (animation.animatedValue as Int) - getScrollOffset(),
+                    0
+                )
                 scrollTo(scrollOffset + animation.animatedValue as Int, scrollY)
             }
+//            if (orientation == VERTICAL) {
+//                scrollListener?.onScrolled()
+//                scrollTo(scrollX, scrollOffset + animation.animatedValue as Int)
+//            } else {
+//                scrollTo(scrollOffset + animation.animatedValue as Int, scrollY)
+//            }
         }
         animator!!.addListener(object : Animator.AnimatorListener {
             override fun onAnimationRepeat(animation: Animator?) {}
