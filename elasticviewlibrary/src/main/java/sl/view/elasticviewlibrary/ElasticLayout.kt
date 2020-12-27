@@ -220,7 +220,6 @@ open class ElasticLayout @JvmOverloads constructor(
     override fun scrollBy(x: Int, y: Int) {
         scrollListener?.let {
             if (it.preOnScrolled(scrollX, scrollY, x, y)) {
-                it.onScrolled(x,y)
                 return
             }
         }
@@ -230,6 +229,7 @@ open class ElasticLayout @JvmOverloads constructor(
         } else {
             super.scrollBy(x, 0)
         }
+        scrollListener?.onScrolled(x,y)
         if (isLoadingOrRefreshing()) return
         val scrollOffset = getScrollOffset()
         //更新控件header，footer状态
@@ -565,7 +565,7 @@ open class ElasticLayout @JvmOverloads constructor(
          *
          * @param dx
          * @param dy 还未滑动的偏移值
-         * @return true 拦截滑动事件 接着就会调用onScrolled
+         * @return false 不拦截滑动事件 接着就会调用onScrolled
          */
         fun preOnScrolled(scrollX: Int, scrollY: Int, dx: Int, dy: Int): Boolean
 
