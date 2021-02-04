@@ -12,6 +12,7 @@ import android.animation.TimeInterpolator
 import android.animation.ValueAnimator
 import android.content.Context
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
@@ -95,6 +96,14 @@ open class ElasticLayout @JvmOverloads constructor(
         //禁止裁剪布局,使得在页面外的view依然能显示
         this.clipChildren = false
         this.clipToPadding = false
+        val runnable1 = Runnable {
+            Log.e("ScrollOffset", "" + getScrollOffset())
+        }
+
+        val runnable2 = Runnable {
+            Log.e("ScrollOffset", "" + getScrollOffset())
+        }
+        //postDelayed(runnable1, 1000)
     }
 
     //处理嵌套滑动
@@ -142,8 +151,13 @@ open class ElasticLayout @JvmOverloads constructor(
             consumed[1] = dy
             scrollBy((dx * dampingTemp).toInt(), (dy * dampingTemp).toInt())
             calcDamping()
-        } else {//此处有两种情况 一是未到边界的滑动，二是已经移动过布局，但是现在开始反向滑动了
+        } else {//此处有两种情况 一是未到边界的滑动，二是已经移动过布局，但是现在开始反向滑动了，三是内容变长了（即loading结束，列表数据刷新了），此时应该不滑动
             if (scrollOffset != 0) {
+                if (isLoading || animator!=null){
+                    consumed[0]=dx
+                    consumed[1]=dy
+                    return
+                }
                 val temp = if (orientation == VERTICAL) dy * damping else dx * damping
                 //防止越界，如果数据越界就设为边界值
                 val offset =
@@ -229,7 +243,7 @@ open class ElasticLayout @JvmOverloads constructor(
         } else {
             super.scrollBy(x, 0)
         }
-        scrollListener?.onScrolled(x,y)
+        scrollListener?.onScrolled(x, y)
         if (isLoadingOrRefreshing()) return
         val scrollOffset = getScrollOffset()
         //更新控件header，footer状态
@@ -259,15 +273,9 @@ open class ElasticLayout @JvmOverloads constructor(
         //canScrollVertically(1)滑动到底部返回false，canScrollVertically(-1)滑动到顶部返回false
         //canScrollHorizontally(1)滑动到右侧底部返回false，canScrollHorizontally(-1)滑动到左侧顶部返回false
         return if (orientation == VERTICAL) {
-            if (dy == 0)
-                !child.canScrollVertically(direction)
-            else
-                !child.canScrollVertically(dy)
+            !child.canScrollVertically(direction)
         } else {
-            if (dx == 0)
-                !child.canScrollHorizontally(direction)
-            else
-                !child.canScrollHorizontally(dx)
+            !child.canScrollHorizontally(direction)
         }
     }
 
@@ -388,8 +396,15 @@ open class ElasticLayout @JvmOverloads constructor(
     private var springAnimationTimeInterpolator: TimeInterpolator? = null
 
     //弹回动画
+    //bug记录 布局嵌套内容为recyclerview时，动画还为执行完毕列表长度发生变化（变长了，就是新增加了内容）会导致动画轨迹变化。
+    //方案1 由外部控制等待动画执行完毕再刷新列表
+    //方案2 检测到列表长度变化，就直接将scrollOffset清0 将headView置于底层
+    //bug fix
+    //最终解决方案，bug原因是刷新速度过快，导致fling事件没有消耗完就loading已经结束
+    //开始执行弹回动画，让外部等待fling结束再通知加载结束不现实
+    //在onNestedPreScroll中进行拦截，拦截条件是 animator!=null && isLoading && canScroll(内容没有滑动到底部)
     private fun springBack(offset: Int, animTime: Long) {
-        animator = if (animator != null) {
+        animator = if (animator != null) {//打断动画
             animator!!.cancel()
             val tmp = -
             if (isLoadingOrRefreshing()) {
@@ -416,6 +431,7 @@ open class ElasticLayout @JvmOverloads constructor(
         animator!!.duration = animTime
         val scrollOffset = getScrollOffset()
         animator!!.addUpdateListener { animation ->
+            Log.e("ScrollOffset", "${getScrollOffset()}")
             if (orientation == VERTICAL) {
                 scrollListener?.onScrolled(
                     0,
