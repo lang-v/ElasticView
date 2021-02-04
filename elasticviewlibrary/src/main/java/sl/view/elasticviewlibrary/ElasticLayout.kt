@@ -196,6 +196,7 @@ open class ElasticLayout @JvmOverloads constructor(
             return
         }
         val scrollOffset = getScrollOffset()
+        Log.e(TAG,"type=$type,isMove=$isMove,scrollOffset=$scrollOffset")
         if (!isMove) return
         isMove = false
         //达到加载条件
@@ -223,6 +224,7 @@ open class ElasticLayout @JvmOverloads constructor(
                 springBack(getScrollOffset(), cancelAnimationTime)
             } else {
                 isLoading = true
+                springBack(scrollOffset,animTimeLong)
                 footerAdapter!!.onDo()
                 listener?.onLoad()
             }
@@ -269,13 +271,13 @@ open class ElasticLayout @JvmOverloads constructor(
     /**
      * 根据布局orientation属性判断横向纵向滑动是否触及边缘
      */
-    private fun canScroll(child: View, direction: Int = 0, dx: Int = 0, dy: Int = 0): Boolean {
+    private fun canScroll(child: View, dx: Int = 0, dy: Int = 0): Boolean {
         //canScrollVertically(1)滑动到底部返回false，canScrollVertically(-1)滑动到顶部返回false
         //canScrollHorizontally(1)滑动到右侧底部返回false，canScrollHorizontally(-1)滑动到左侧顶部返回false
         return if (orientation == VERTICAL) {
-            !child.canScrollVertically(direction)
+            !child.canScrollVertically(dy)
         } else {
-            !child.canScrollHorizontally(direction)
+            !child.canScrollHorizontally(dx)
         }
     }
 
