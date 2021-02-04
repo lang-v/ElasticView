@@ -12,11 +12,9 @@ import android.animation.TimeInterpolator
 import android.animation.ValueAnimator
 import android.content.Context
 import android.util.AttributeSet
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
-import androidx.annotation.ColorInt
 import androidx.core.view.NestedScrollingParent2
 import androidx.core.view.ViewCompat
 import kotlin.math.abs
@@ -147,6 +145,11 @@ open class ElasticLayout @JvmOverloads constructor(
             calcDamping()
         } else {//此处有两种情况 一是未到边界的滑动，二是已经移动过布局，但是现在开始反向滑动了，三是内容变长了（即loading结束，列表数据刷新了），此时应该不滑动
             if (scrollOffset != 0) {
+                if (animator!=null){
+                    consumed[0]=dx
+                    consumed[1]=dy
+                    return
+                }
                 val temp = if (orientation == VERTICAL) dy * damping else dx * damping
                 //防止越界，如果数据越界就设为边界值
                 val offset =
@@ -185,7 +188,6 @@ open class ElasticLayout @JvmOverloads constructor(
             return
         }
         val scrollOffset = getScrollOffset()
-//        Log.e(TAG,"type=$type,isMove=$isMove,scrollOffset=$scrollOffset")
         if (!isMove) return
         isMove = false
         //达到加载条件
