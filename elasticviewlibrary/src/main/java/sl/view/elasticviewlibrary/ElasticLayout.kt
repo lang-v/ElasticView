@@ -137,7 +137,7 @@ open class ElasticLayout @JvmOverloads constructor(
                 /**
                  * 这个判断很 重要
                  */
-                if (!allowFling) return
+                if (!allowFling || animator!=null) return
                 isFling = true
                 allowFling = true
                 if (abs(scrollOffset) >= 100 || abs(dx + dy) * dampingTemp < 10) {
