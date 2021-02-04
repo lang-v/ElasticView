@@ -96,14 +96,6 @@ open class ElasticLayout @JvmOverloads constructor(
         //禁止裁剪布局,使得在页面外的view依然能显示
         this.clipChildren = false
         this.clipToPadding = false
-        val runnable1 = Runnable {
-            Log.e("ScrollOffset", "" + getScrollOffset())
-        }
-
-        val runnable2 = Runnable {
-            Log.e("ScrollOffset", "" + getScrollOffset())
-        }
-        //postDelayed(runnable1, 1000)
     }
 
     //处理嵌套滑动
@@ -143,6 +135,8 @@ open class ElasticLayout @JvmOverloads constructor(
                 if (abs(scrollOffset) >= 100 || abs(dx + dy) * dampingTemp < 10) {
                     allowFling = false//禁止fling
                     springBack(scrollOffset, animTimeShort)
+                    consumed[0] = dx
+                    consumed[1] = dy
                     return
                 }
             }
@@ -153,7 +147,7 @@ open class ElasticLayout @JvmOverloads constructor(
             calcDamping()
         } else {//此处有两种情况 一是未到边界的滑动，二是已经移动过布局，但是现在开始反向滑动了，三是内容变长了（即loading结束，列表数据刷新了），此时应该不滑动
             if (scrollOffset != 0) {
-                if (isLoading || animator!=null){
+                if (animator!=null){
                     consumed[0]=dx
                     consumed[1]=dy
                     return
@@ -196,7 +190,7 @@ open class ElasticLayout @JvmOverloads constructor(
             return
         }
         val scrollOffset = getScrollOffset()
-        Log.e(TAG,"type=$type,isMove=$isMove,scrollOffset=$scrollOffset")
+//        Log.e(TAG,"type=$type,isMove=$isMove,scrollOffset=$scrollOffset")
         if (!isMove) return
         isMove = false
         //达到加载条件
@@ -433,7 +427,6 @@ open class ElasticLayout @JvmOverloads constructor(
         animator!!.duration = animTime
         val scrollOffset = getScrollOffset()
         animator!!.addUpdateListener { animation ->
-            Log.e("ScrollOffset", "${getScrollOffset()}")
             if (orientation == VERTICAL) {
                 scrollListener?.onScrolled(
                     0,
